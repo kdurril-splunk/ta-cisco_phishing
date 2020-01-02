@@ -23,7 +23,9 @@ class CiscoClient(object):
         offset = 0
         while has_more:
             message_page = self.get_page(offset, initial_time)
-            yield message_page
+            if message_page and message_page.get('messages', None):
+                for data in message_page['messages']:
+                    yield data
 
             if message_page is not None:
                 has_more = message_page['count'] >= self._message_limit
@@ -39,26 +41,27 @@ class CiscoClient(object):
         headers = {'Authorization': 'Bearer ' + self._token}
         conn = http.client.HTTPSConnection(self._cisco_service_host)
 
-        message_url = (self._cisco_messages_url + '?start_date=%s&end_date=%s&limit=%d&offset=%d&sort=date+asc' % (
-            start_time, end_time, self._message_limit, offset))
+        message_url = (self._cisco_messages_url + '?start_date=%s&end_date=%s&limit=%d&offset=%d&sort=date+asc' %
+            (start_time, end_time, self._message_limit, offset))
 
         conn.request("GET", message_url, headers=headers)
         res = conn.getresponse()
+
+        while res.status == 429:  # if getting too many requests error, run it again after 1 second
+            time.sleep(1)
+            conn.request("GET", message_url, headers=headers)
+            res = conn.getresponse()
+
         if res.status == 200:
             data = res.read()
             out = data.decode("utf-8")
             parsed = json.loads(out)
 
             return parsed
-        elif res.status == 429:  # if getting too many requests error, run it again after 1 second
-            time.sleep(1)
-            return self.get_page(offset, initial_time)
-        elif res.status == 401:  # if getting unauthorized response, update the token and try again.
-            self._token = self.get_token()
-            return self.get_page(offset, initial_time)
+        elif res.status == 401:  # if getting unauthorized response, throw exception.
+            raise Exception('Cisco client Error: server returns unauthorized response. ' + str(res.msg))
         else:
-            raise Exception('Cisco client Error: there is a problem connecting to cisco api. ' +
-                            str(res.msg))
+            raise Exception('Cisco client Error: there is a problem connecting to cisco api. ' + str(res.msg))
 
     def get_token(self):
         if self._token is None:
@@ -71,7 +74,10 @@ class CiscoClient(object):
             headers = {'content-type': 'application/json'}
             conn = http.client.HTTPSConnection(self._cisco_token_host)
 
-            conn.request("POST", self._cisco_token_url, json_data, headers=headers)
+            conn.request("POST",
+                         self._cisco_token_url,
+                         json_data,
+                         headers=headers)
             tk = conn.getresponse()
             if tk.status == 200:
                 data = tk.read()
@@ -80,8 +86,9 @@ class CiscoClient(object):
 
                 return parsed['access_token']
             else:
-                raise Exception('Cisco client Error: unable to obtain token from cisco api. ' +
-                                str(tk.msg))
+                raise Exception(
+                    'Cisco client Error: unable to obtain token from cisco api. '
+                    + str(tk.msg))
 
     def get_start_end_date(self, initial_time):
         start_time = initial_time.isoformat()
