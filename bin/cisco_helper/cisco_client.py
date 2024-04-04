@@ -94,9 +94,8 @@ class CiscoClient(object):
         start_time = initial_time.isoformat()
         end_time = (datetime.utcnow() - timedelta(minutes=self._duration)).isoformat()
         # cisco api only limits time range to two months, if time range is wider than 30 days
-        # change the end time to current time + 30 days
-        if (datetime.utcnow() - initial_time).days > 30:
-            # just add 30 days at a time
-            end_time = (initial_time + timedelta(days=30)).isoformat()
-
+        # change the end time to current time + 5 minutes
+        if (datetime.utcnow() - initial_time) > timedelta(seconds=300):
+            # just add 5 minutes (300 seconds) at a time
+            end_time = (initial_time + timedelta(seconds=300)).isoformat()
         return start_time, end_time
