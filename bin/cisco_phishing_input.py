@@ -71,6 +71,17 @@ class CiscoPhishingInput(Script):
         )
         scheme.add_argument(start_date_arg)
 
+        end_date_arg = Argument(
+            name='end_date',
+            title='End Date',
+            description='The end point of fetching data (use to backfill)',
+            data_type=Argument.data_type_string,
+            required_on_create=False,
+            required_on_edit=False
+        )
+        scheme.add_argument(end_date_arg)
+
+
         client_id_arg = Argument(
             name='client_id',
             title='Client Id',
@@ -152,6 +163,12 @@ class CiscoPhishingInput(Script):
         except:
             raise ValueError(
                 "Invalid initial start date value, please use the following format 'yyyy-mm-ddThh:mm:ss+00:00'")
+        try:
+            end_date = datetime.strptime(validation_definition.parameters["end_date"],
+                                                   '%Y-%m-%dT%H:%M:%S+00:00')
+        except:
+            raise ValueError(
+                "Invalid end date value, please use the following format 'yyyy-mm-ddThh:mm:ss+00:00'")
 
     def stream_events(self, inputs, ew):
         """This function handles all the action: splunk calls this modular input
@@ -177,6 +194,9 @@ class CiscoPhishingInput(Script):
                 masked_secret = input_item['client_secret']
                 initial_start_date = datetime.strptime(input_item["initial_start_date"],
                                                        '%Y-%m-%dT%H:%M:%S+00:00')
+                end_date = datetime.strptime(input_item["end_date"],
+                                                       '%Y-%m-%dT%H:%M:%S+00:00')
+
 
                 config_provider = data_encryption.DataEncryption(session_key, input_name)
                 # get the real secret from splunk client
@@ -186,6 +206,7 @@ class CiscoPhishingInput(Script):
                     'duration': input_item['duration'],
                     'message_limit': input_item['message_limit'],
                     'initial_start_date': input_item['initial_start_date'],
+                    'end_date': input_item['end_date'],
                     'cisco_token_host': input_item['cisco_token_host'],
                     'cisco_service_host': input_item['cisco_service_host']
                 }

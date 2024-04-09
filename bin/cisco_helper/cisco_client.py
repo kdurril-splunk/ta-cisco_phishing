@@ -15,6 +15,7 @@ class CiscoClient(object):
         self._client_id = configs['client_id']
         self._cisco_token_host = configs['cisco_token_host']
         self._cisco_service_host = configs['cisco_service_host']
+        self._end_date = configs['end_date'] 
         self._secret = configs['client_secret']
         self._token = self.get_token()
 
@@ -95,7 +96,9 @@ class CiscoClient(object):
         end_time = (datetime.utcnow() - timedelta(minutes=self._duration)).isoformat()
         # cisco api only limits time range to two months, if time range is wider than 30 days
         # change the end time to current time + 5 minutes
-        if (datetime.utcnow() - initial_time) > timedelta(seconds=300):
-            # just add 5 minutes (300 seconds) at a time
-            end_time = (initial_time + timedelta(seconds=300)).isoformat()
-        return start_time, end_time
+        while initial_time <  datetime.strptime(self._end_date,'%Y-%m-%dT%H:%M:%S+00:00'):
+          #datetime.strptime('2024/03/14:18:00:00','%Y/%m/%d:%H:%M:%S'):
+          if (datetime.utcnow() - initial_time) > timedelta(seconds=300):
+              # just add 5 minutes (300 seconds) at a time
+              end_time = (initial_time + timedelta(seconds=300)).isoformat()
+          return start_time, end_time
